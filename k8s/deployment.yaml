@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diarization
+  labels:
+    app: diarization
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: diarization
+  template:
+    metadata:
+      labels:
+        app: diarization
+    spec:
+      containers:
+        - name: diarization
+          image: diarization:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-secret
+                  key: HF_TOKEN
+          resources:
+            requests:
+              cpu: "1"
+              memory: 4Gi
+              # nvidia.com/gpu: "1"
+            limits:
+              cpu: "2"
+              memory: 7Gi
+              # nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: hf-cache
+              mountPath: /root/.cache/huggingface
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+      volumes:
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: hf-model-cache
